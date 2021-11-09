@@ -34,11 +34,20 @@ class Projects(models.Model):
     # description(CharField)
     description = models.CharField(max_length=200)
     # type(Charfield)
-    type = models.CharField(choices=PROJECT_CHOICES)
+    type = models.CharField(max_length=30, choices=PROJECT_CHOICES)
     # relation un-à-plusieurs avec la table Users pour enregistrer l'auteur du projet
     # possibilité de gérer ce cas à l'aide du champ d'autorisation de la classe Contributor
-    # author_user_id(ForeignKey)
-    author_user = models.ManyToManyField(to=settings.AUTH_USER_MODE, through='Contributors')
+    # author_user_id(ForeignKey)  => lien contributors
+    # permetrtait de récupérer les contributions d'un utilisateur avec user.contributions en
+    # ajoutant related_name="contributions" si contributions definit dans contributors
+    author_user = models.ManyToManyField(to=settings.AUTH_USER_MODEL, through='Contributors',
+                                         related_name="contributions")
+
+
+ROLE_CHOICES = (
+    ('Author', 'Auteur'),
+    ('Contributor', 'Contributeur'),
+)
 
 
 class Contributors(models.Model):
@@ -46,7 +55,7 @@ class Contributors(models.Model):
      entre la table Users et la table Projects"""
     # Table through : https://docs.djangoproject.com/fr/3.2/topics/db/models/
     # user_id(IntegerField)
-    user = models.ForeignKey(to=settings.AUTH_USER_MODE,
+    user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
                              on_delete=models.SET_NULL, null=True)
     # project_id(IntegerField)
     project = models.ForeignKey(to=Projects,
@@ -54,7 +63,7 @@ class Contributors(models.Model):
     # permission(ChoiceField)
     # permission = models.ChoiceField
     # role(CharField)
-    role = models.CharField(max_length=15, verbose_name="rôle")
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES, verbose_name='Rôle')
 
 
 PRIORITY = (('Low', 'Faible'), ('Medium', 'Moyenne'),
@@ -78,20 +87,21 @@ class Issues(models.Model):
     # desc(CharField)
     desc = models.CharField(max_length=200)
     # tag(CharField)
-    tag = models.CharField(choices=TAG)
+    tag = models.CharField(max_length=30, choices=TAG)
     # priority(CharField)
-    priority = models.CharField(choices=PRIORITY)
+    priority = models.CharField(max_length=30, choices=PRIORITY)
     # project_id(InterField)
     project = models.ForeignKey(to=Projects,
                                 on_delete=models.SET_NULL, null=True)
     # status(CharField)
-    status = models.CharField(choices=STATUS)
+    status = models.CharField(max_length=30, choices=STATUS)
     # author_user_id(ForeignKey)
-    author_user = models.ForeignKey(to=settings.AUTH_USER_MODE,
-                                    on_delete=models.SET_NULL, null=True)
+    author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
+                                    on_delete=models.SET_NULL, null=True, related_name='author_by')
     # assignee_user_id(ForeignKey) Utilisateur auquel le problme est affecté
-    assignee_user = models.ForeignKey(to=settings.AUTH_USER_MODE,
-                                      on_delete=models.SET_NULL, null=True)
+    assignee_user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
+                                      on_delete=models.SET_NULL, null=True,
+                                      related_name='assignment')
     # created_time(DateTimeField)
     created_time = models.DateTimeField(auto_now_add=True)
 
@@ -113,7 +123,7 @@ class Comments(models.Model):
     # description(CharField)
     description = models.CharField(max_length=500)
     # author_user_id(ForeignKey)
-    author_user = models.ForeignKey(to=settings.AUTH_USER_MODE,
+    author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
                                     on_delete=models.SET_NULL, null=True)
     # issue_user_id(ForeignKey)
     issue = models.ForeignKey(to=Issues,
