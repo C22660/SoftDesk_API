@@ -43,6 +43,12 @@ class Projects(models.Model):
     author_user = models.ManyToManyField(to=settings.AUTH_USER_MODEL, through='Contributors',
                                          related_name="contributions")
 
+    class Meta:
+        verbose_name = "Projet"
+
+    def __str__(self):
+        return self.title
+
 
 ROLE_CHOICES = (
     ('Author', 'Auteur'),
@@ -64,6 +70,9 @@ class Contributors(models.Model):
     # permission = models.ChoiceField
     # role(CharField)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, verbose_name='Rôle')
+
+    class Meta:
+        verbose_name = "Contributeur"
 
 
 PRIORITY = (('Low', 'Faible'), ('Medium', 'Moyenne'),
@@ -109,7 +118,7 @@ class Issues(models.Model):
         # Afficher les derniers dépôts en premier
         ordering = ['-created_time']
         # Affiche un nom autre que Issues
-        verbose_name = "Problèmes recensés"
+        verbose_name = "Problèmes recensé"
 
     def __str__(self):
         return self.title
@@ -130,3 +139,6 @@ class Comments(models.Model):
                               on_delete=models.CASCADE)
     # created_time(DateTimeField)
     created_time = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Commentaire"
