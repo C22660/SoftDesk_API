@@ -5,24 +5,6 @@ from django.db import models
 # Create your models here.
 
 
-# ou User de contrib.auth ?
-# class Users(models.Model):
-#     """stocke les identifiants de connexion des utilisateurs"""
-#     # user_id(IntegerField)
-#     # first_name(CharField)
-#     first_name = models.CharField(max_length=15, verbose_name="prenom")
-#     # last_name(CharField)
-#     last_name = models.CharField(max_length=15, verbose_name="nom")
-#     # email(EmailField)
-#     email = models.EmailField(unique=True, max_length=255, blank=False)
-#     # password(CharField)
-#     password = models.CharField
-
-
-PROJECT_CHOICES = (('Back-end', 'Back-end'), ('Front-end', 'Front-end'),
-                   ('iOS', 'iOS'), ('Android', 'Android'))
-
-
 class Projects(models.Model):
     """stocke toutes les informations concernant chaque projet/produit/application
      en cours de développement ou de gestion dans l'entreprise.
@@ -33,7 +15,9 @@ class Projects(models.Model):
     title = models.CharField(max_length=128, verbose_name="Titre")
     # description(CharField)
     description = models.CharField(max_length=200)
-    # type(Charfield)
+    # type
+    PROJECT_CHOICES = (('Back-end', 'Back-end'), ('Front-end', 'Front-end'),
+                       ('iOS', 'iOS'), ('Android', 'Android'))
     type = models.CharField(max_length=30, choices=PROJECT_CHOICES)
     # relation un-à-plusieurs avec la table Users pour enregistrer l'auteur du projet
     # possibilité de gérer ce cas à l'aide du champ d'autorisation de la classe Contributor
@@ -50,12 +34,6 @@ class Projects(models.Model):
         return self.title
 
 
-ROLE_CHOICES = (
-    ('Author', 'Auteur'),
-    ('Contributor', 'Contributeur'),
-)
-
-
 class Contributors(models.Model):
     """table through permettant d'établir la relation plusieurs-à-plusieurs
      entre la table Users et la table Projects"""
@@ -65,24 +43,21 @@ class Contributors(models.Model):
                              on_delete=models.SET_NULL, null=True)
     # project_id(IntegerField)
     project = models.ForeignKey(to=Projects,
-                                on_delete=models.SET_NULL, null=True)
+                                on_delete=models.SET_NULL, null=True, related_name='contributeur')
     # permission(ChoiceField)
     # permission = models.ChoiceField
     # role(CharField)
+    ROLE_CHOICES = (
+        ('Author', 'Auteur'),
+        ('Contributor', 'Contributeur'),
+    )
     role = models.CharField(max_length=30, choices=ROLE_CHOICES, verbose_name='Rôle')
 
     class Meta:
         verbose_name = "Contributeur"
 
-
-PRIORITY = (('Low', 'Faible'), ('Medium', 'Moyenne'),
-            ('High', 'Elevée'))
-
-TAG = (('Bug', 'Bug'), ('Improvement', 'Amélioration'),
-       ('Task', 'Tâche'))
-
-STATUS = (('To do', 'A faire'), ('In progress', 'En cours'),
-          ('Finished', 'Terminé'))
+    def __str__(self):
+        return self.role
 
 
 class Issues(models.Model):
@@ -96,13 +71,19 @@ class Issues(models.Model):
     # desc(CharField)
     desc = models.CharField(max_length=200)
     # tag(CharField)
+    TAG = (('Bug', 'Bug'), ('Improvement', 'Amélioration'),
+           ('Task', 'Tâche'))
     tag = models.CharField(max_length=30, choices=TAG)
     # priority(CharField)
+    PRIORITY = (('Low', 'Faible'), ('Medium', 'Moyenne'),
+                ('High', 'Elevée'))
     priority = models.CharField(max_length=30, choices=PRIORITY)
     # project_id(InterField)
     project = models.ForeignKey(to=Projects,
                                 on_delete=models.SET_NULL, null=True)
     # status(CharField)
+    STATUS = (('To do', 'A faire'), ('In progress', 'En cours'),
+              ('Finished', 'Terminé'))
     status = models.CharField(max_length=30, choices=STATUS)
     # author_user_id(ForeignKey)
     author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL,
