@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
 from authentication.models import Users
+# from SoftDesk import settings
 
 
 class UsersSerializer(ModelSerializer):
@@ -20,16 +21,13 @@ class UsersSerializer(ModelSerializer):
         user = Users(
             email=self.validated_data['email'],
             username=self.validated_data['username'],
-            # password=self.password.validated_data['password'],
-            # password2=self.password2.validated_data['password2']
+            # password=self.validated_data['password'],
+            # password2=self.validated_data['password2']
         )
-        password = self.password.validated_data['password']
-        password2 = self.password2.validated_data['password2']
-        # password = self.password.data['password']
-        # password2 = self.password2.data['password2']
+        password = self.validated_data['password']
+        password2 = self.validated_data['password2']
         if password != password2:
             raise serializers.ValidationError({'password': 'Les mots de passe doivent être identiques'})
-        # user.set_password(password)
         user.save()
         return user
 
