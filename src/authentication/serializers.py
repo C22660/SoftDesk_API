@@ -18,16 +18,29 @@ class UsersSerializer(ModelSerializer):
 
     # pour s'assurer que password et passorwd2 matchent, on overwrite la méthode save
     def save(self):
-        user = Users(
-            email=self.validated_data['email'],
-            username=self.validated_data['username'],
-            # password=self.validated_data['password'],
-            # password2=self.validated_data['password2']
-        )
         password = self.validated_data['password']
         password2 = self.validated_data['password2']
         if password != password2:
             raise serializers.ValidationError({'password': 'Les mots de passe doivent être identiques'})
+        # user = Users.objects.create_user(email=self.validated_data['email'],
+        #                           username=self.validated_data['username'],
+        #                           password=password
+        #                           )
+        user = Users(
+            email=self.validated_data['email'],
+            username=self.validated_data['username']
+        )
+        user.set_password(self.validated_data['password'])
         user.save()
         return user
+        # pourtant, dans la doc https://www.django-rest-framework.org/api-guide/serializers/
+        # Additional keyword arguments
+
+        # user = Users(
+        #     email=self.validated_data['email'],
+        #     username=self.validated_data['username'],
+        #     password=password,
+        # )
+        # user.save()
+        # return user
 
