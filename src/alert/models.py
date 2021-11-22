@@ -80,7 +80,7 @@ class Issues(models.Model):
     priority = models.CharField(max_length=30, choices=PRIORITY)
     # project_id(InterField)
     project = models.ForeignKey(to=Projects,
-                                on_delete=models.SET_NULL, null=True)
+                                on_delete=models.CASCADE, null=True)
     # status(CharField)
     STATUS = (('To do', 'A faire'), ('In progress', 'En cours'),
               ('Finished', 'Terminé'))

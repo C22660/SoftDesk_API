@@ -1,7 +1,7 @@
 from rest_framework import serializers, request
 from rest_framework.serializers import ModelSerializer
 
-from alert.models import Projects, Contributors, Issues
+from alert.models import Projects, Contributors, Issues, Comments
 
 
 class ProjectsListSerializer(ModelSerializer):
@@ -48,7 +48,7 @@ class ProjectsDetailSerializer(ModelSerializer):
     # Contributors (lien avec Projects), puis on l'ajoute dans les fields à afficher.
     # Pour ne pas avoir simplement les ID, on repasse le sérializer de Contributors avec le
     # paramètre many=True
-    contributeur = ContributorsSerializer(many=True)
+    contributeur = ContributorsSerializer(many=True, read_only=True)
 
     class Meta:
         model = Projects
@@ -76,20 +76,32 @@ class IssuesSerializer(ModelSerializer):
             assignee_user=self.validated_data['assignee_user'],
         )
         issue.save()
-        # data = {}
-        # data['response'] = 'Nouvel utilisateur enregistré avec succès'
-        # data['project'] = str(issue.project.pk)
-        # data['title'] = str(issue.title)
-        # data['desc'] = str(issue.desc)
-        # data['tag'] = str(issue.tag)
-        # data['priority'] = str(issue.priority)
-        # data['status'] = str(issue.status)
-        # data['author_user'] = str(issue.author_user)
-        # data['assignee_user'] = str(issue.assignee_user)
-        # data['created_time'] = str(issue.created_time)
 
         # Resérialization de issue pour qu'il puisse être affiché, en Json, par le
         # httpResponse de la view
         issue_serialized = IssuesSerializer(instance=issue).data
 
         return issue_serialized
+
+
+class CommentsSerializer(ModelSerializer):
+    """Serialize la classe Comments"""
+
+    class Meta:
+        model = Comments
+        fields = ['issue', 'description', 'author_user', 'created_time']
+
+    def create(self, issue_concerned=None):
+
+        comment = Comments(
+            issue=issue_concerned,
+            description=self.validated_data['description'],
+            author_user=self.validated_data['author_user'],
+        )
+        comment.save()
+
+        # Resérialization de comment pour qu'il puisse être affiché, en Json, par le
+        # httpResponse de la view
+        comment_serialized = CommentsSerializer(instance=comment).data
+
+        return comment_serialized
