@@ -43,11 +43,12 @@ class ProjectsViewset(ModelViewSet):
         return Response({"message": "Le projet et ses problèmes associés ont bien été supprimés."},
                         status=200)
 
-    # -----------CONTRIBUTORS---------------
+    # --------------------------C O N T R I B U T O R S (USERS)----------------------
 
-    # Via @action, création de l'url : /projects/<id>/users (ici, users est automatiquement le nom
-    # de la fonction, car aucun url_path de précisé)
-    # sources : https://stackoverflow.com/questions/67927493/djangorestframework-create-separate-urls-for-separate-functions-of-modelviewse
+    # ------------------------------------------------------------------------------ #
+    # Via @action, création de l'url : /projects/<id>/users (ici, users est
+    # automatiquement le nom de la fonction, car aucun url_path de précisé)
+    # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['get', 'post'])
     def users(self, request, pk=None):
         """Création d'un path /projects/<id>/users pour afficher les contributeurs sur un projet,
@@ -81,11 +82,13 @@ class ProjectsViewset(ModelViewSet):
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-    # Via @action, création de l'url : /project/{id}/users/{id}/ ici, l'url n'est pas le nom de
-    # la fonction mais remplacé par url_path. Comme pk, user_id devient récupérable
+    # ------------------------------------------------------------------------------ #
+    # Via @action, création de l'url : /project/{id}/users/{id}/ ici, l'url n'est pas
+    # le nom de la fonction mais remplacé par url_path. Comme pk, user_id devient
+    # récupérable
+    # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['delete'], url_path='users/(?P<user_id>\d+)')
-    def remove_contributor_from_project(self, request, user_id, pk=None):
+    def remove_contributor_from_project(self, user_id, pk=None):
         print(user_id)
         # Vérification que le projet existe
         try:
@@ -107,7 +110,7 @@ class ProjectsViewset(ModelViewSet):
 
         return Response({"message": "L'utilisateur a bien été supprimé de ce projet."}, status=200)
 
-    # -----------ISSUES------------------------------------------------------------
+    # -------------------------------I S S U E S-------------------------------------
 
     # GET: /project/{id}/issues/
     @action(detail=True, methods=['get', 'post'])
@@ -118,7 +121,7 @@ class ProjectsViewset(ModelViewSet):
         if request.method == "GET":
             # Vérification qu'il y a un problème d'enregisté sur le projet
             try:
-                queryset = Issues.objects.get(project=pk)
+                queryset = Issues.objects.filter(project=pk)
             except Issues.DoesNotExist:
                 return HttpResponse({"Aucun problème pour ce projet, ou projet inexistant."},
                                     status=404)
@@ -146,8 +149,11 @@ class ProjectsViewset(ModelViewSet):
                 return Response(issue, status=200)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Via @action, création de l'url : /project/{id}/issues/{id}/ ici, l'url n'est pas le nom de
-        # la fonction mais remplacé par url_path. Comme pk, issue_id devient récupérable
+        # ------------------------------------------------------------------------------ #
+        # Via @action, création de l'url : /project/{id}/issues/{id}/ ici, l'url n'est pas
+        # le nom de la fonction mais remplacé par url_path. Comme pk, issue_id devient
+        # récupérable
+        # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)')
     def update_or_delete_issue(self, request, issue_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id> pour mettre à jour un problème,
@@ -161,7 +167,6 @@ class ProjectsViewset(ModelViewSet):
         # récupération des problèmes liés au projet
         issue_concerned = Issues.objects.filter(project=pk).filter(pk=issue_id)
         # Si aucun problème n'est associé à ce projet, alors len = 0 :
-        print(len(issue_concerned))
         if len(issue_concerned) == 0:
             return HttpResponse({f"Aucun problème {issue_id} associé au projet {pk}."},
                                 status=404
@@ -169,10 +174,10 @@ class ProjectsViewset(ModelViewSet):
 
         if request.method == "PUT":
             serializer = IssuesSerializer(partial=True)
-
+            print(request.data)
             # Pas de création d'un update dans le serializers.py car utilisation de ipdate()
             issue_modified = serializer.update(instance=issue_concerned.first(),
-                                               validated_data=request.query_params)
+                                               validated_data=request.data)
 
             # reserialization de issue_modified pour passage en Response
             issue_serialized = IssuesSerializer(instance=issue_modified).data
@@ -184,33 +189,47 @@ class ProjectsViewset(ModelViewSet):
 
             return Response({"message": "Le problème a bien été supprimé."}, status=200)
 
-        # -----------COMMENTS---------------------------------------------
+        # ----------------------------------C O M M E N T S-----------------------------
 
+        # ------------------------------------------------------------------------------ #
         # Via @action, création de l'url : /project/{id}/issues/{id}/comments/
         # ici, l'url n'est pas le nom de la fonction mais remplacé par url_path.
         # Comme pk, issue_id devient récupérable
+        # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['post', 'get'],
             url_path='issues/(?P<issue_id>\d+)/comments')
     def comments(self, request, issue_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id>/comments pour créer, récupérer
          un commentaire"""
-        # Vérification que le problème existe
+        # Vérification que le projet existe
         try:
-            issue_concerned = Issues.objects.get(pk=issue_id)
-        except Issues.DoesNotExist:
-            return HttpResponse({f"Le problème {issue_id} n'existe pas."}, status=404)
+            Projects.objects.get(pk=pk)
+        except Projects.DoesNotExist:
+            return HttpResponse({f"Le projet {pk} n'existe pas."}, status=404)
 
+        # Vérification qu'il y a bien un problèmes 'issue_id' lié au projet
+        issue_concerned = Issues.objects.filter(project=pk).filter(pk=issue_id)
+        # Si aucun problème n'est associé à ce projet, alors len = 0 :
+        if len(issue_concerned) == 0:
+            return HttpResponse({f"Aucun problème {issue_id} associé au projet {pk}."},
+                                status=404
+                                )
         # Enregistrer un commentaire pour un problème
         if request.method == "POST":
             # Informations partielles adressées au sérializer (pas l'ID de l'issue puisque abs
             # du body et présent dans l'url). Ci-dessous, request.data est vide, donc utilisation
-            # de request.query_params
-            serializer = CommentsSerializer(data=request.query_params, partial=True)
+            # de request.query_params (phénomène inverse, le lendemain, retour au request.data)
+            # serializer = CommentsSerializer(data=request.query_params, partial=True)
+
+            serializer = CommentsSerializer(data=request.data, partial=True)
             if serializer.is_valid():
                 # Si Informations partielles validées :
                 # Enregistrement du commentaire par le serializer en lui adressant l'issue concernée
                 # dans le try précédent, grace au issue_id de l'url
-                comment = serializer.create(issue_concerned=issue_concerned)
+                # !!! si, issue_concerned récupérée avec filter et non get, il faut ajouter .first()
+                # car il s'agit alors d'un queryset et non plus d'une instance avec get
+                # issue_concerned = Issues.objects.get(pk=issue_id)
+                comment = serializer.create(issue_concerned=issue_concerned.first())
                 return Response(comment, status=200)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -230,24 +249,34 @@ class ProjectsViewset(ModelViewSet):
     def update_or_delete_or_get_comment(self, request, issue_id, comment_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id>/comments pour créer, récupérer,
         modifier, supprimer un commentaire"""
-        # Vérification qu'il y a un problème d'enregisté sur le projet
+        # Vérification qu'il y a bien un projet pk
         try:
-            Issues.objects.get(project=pk)
-        except Issues.DoesNotExist:
-            return HttpResponse({"Aucun problème pour ce projet, ou projet inexistant."},
-                                status=404)
-        # Vérification que le commentaire existe
-        try:
-            comment_concerned = Comments.objects.get(pk=comment_id)
-        except Comments.DoesNotExist:
-            return HttpResponse({f"Le commentaire {comment_id} n'existe pas."}, status=404)
+            Projects.objects.get(pk=pk)
+        except Projects.DoesNotExist:
+            return HttpResponse({f"Le projet {pk} n'existe pas."}, status=404)
+
+        # Vérification qu'il y a bien un problème 'issue_id' lié au projet
+        issue_concerned = Issues.objects.filter(project=pk).filter(pk=issue_id)
+        # Si aucun problème n'est associé à ce projet, alors len = 0 :
+        if len(issue_concerned) == 0:
+            return HttpResponse({f"Aucun problème {issue_id} associé au projet {pk}."},
+                                status=404
+                                )
+        # Enfin, vérification que le commentaire existe et est bien lié à issue_id
+        comment_concerned = Comments.objects.filter(pk=comment_id).filter(issue=issue_id)
+
+        # Si aucun problème n'est associé à ce projet, alors len = 0 :
+        if len(comment_concerned) == 0:
+            return HttpResponse({f"Aucun commentaire {comment_id} associé au problème {issue_id}."},
+                                status=404
+                                )
 
         # Modifier un commentaire
         if request.method == "PUT":
             serializer = CommentsSerializer(partial=True)
 
             # Pas de création d'un update dans le serializers.py car utilisation de update()
-            comment_modified = serializer.update(instance=comment_concerned,
+            comment_modified = serializer.update(instance=comment_concerned.first(),
                                                  validated_data=request.query_params)
 
             # reserialization de comment_modified pour passage en Response
@@ -259,3 +288,10 @@ class ProjectsViewset(ModelViewSet):
             comment_concerned.delete()
 
             return Response({"message": "Le commentaire a bien été supprimé."}, status=200)
+
+        # Récupérer un commentaire
+        if request.method == "GET":
+            # reserialization de comment_modified pour passage en Response
+            comment_find = CommentsSerializer(instance=comment_concerned.first()).data
+
+            return Response(comment_find, status=200)

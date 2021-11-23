@@ -79,8 +79,8 @@ class Issues(models.Model):
                 ('High', 'Elevée'))
     priority = models.CharField(max_length=30, choices=PRIORITY)
     # project_id(InterField)
-    project = models.ForeignKey(to=Projects,
-                                on_delete=models.CASCADE, null=True)
+    project = models.ForeignKey(Projects,
+                                on_delete=models.CASCADE, blank=True, null=True)
     # status(CharField)
     STATUS = (('To do', 'A faire'), ('In progress', 'En cours'),
               ('Finished', 'Terminé'))
