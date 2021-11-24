@@ -1,6 +1,6 @@
 from django.http import Http404, HttpResponse
 from rest_framework import status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from alert.models import Projects, Contributors, Issues, Comments
 from alert.serializers import ProjectsListSerializer, ProjectsDetailSerializer,\
     ContributorsSerializer, IssuesSerializer, CommentsSerializer
+from alert.permissions import IsUserAuthorAndIsAuthenticated
 
 # 3 Récupérer la liste de tous les projets (projects) rattachés à l'utilisateur (user) connecté
 # !!! manque utilisateur connecté
@@ -16,18 +17,17 @@ from alert.serializers import ProjectsListSerializer, ProjectsDetailSerializer,\
 
 class ProjectsViewset(ModelViewSet):
 
-    # serializer_class = ProjectsListSerializer
-    # detail_serializer_class = ProjectsDetailSerializer
     # permission_classes = [IsAuthenticated, IsUserAuthor]
-    # permission_classes = [IsUserAuthor]
+    permission_classes = [IsUserAuthorAndIsAuthenticated]
 
     serializer_class = ProjectsDetailSerializer
 
+    # @permission_classes([IsAuthenticated, IsUserAuthor])
     def get_queryset(self):
-        print("self.request.user ", self.request.user)
-        return Projects.objects.all()
+        # print("self.request.user ", self.request.user)
+        # return Projects.objects.all()
         # Pour récupérer les projets rattachés à l'user (soit auteur, soit contributeur)
-        # return Projects.objects.filter(author_user=self.request.user)
+        return Projects.objects.filter(author_user=self.request.user)
 
     # Pour pouvoir faire un update partiel
     # https://tech.serhatteker.com/post/2020-09/enable-partial-update-drf/
@@ -244,6 +244,11 @@ class ProjectsViewset(ModelViewSet):
 
             return Response(datas, status=200)
 
+        # ------------------------------------------------------------------------------ #
+        # Via @action, création de l'url : /project/{id}/issues/{id}/comments/{id}
+        # ici, l'url n'est pas le nom de la fonction mais remplacé par url_path.
+        # Comme pk, issue_id et comment_id deviennent récupérables
+        # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['get', 'put', 'delete'],
             url_path='issues/(?P<issue_id>\d+)/comments/(?P<comment_id>\d+)')
     def update_or_delete_or_get_comment(self, request, issue_id, comment_id, pk=None):
