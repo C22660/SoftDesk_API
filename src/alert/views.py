@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from alert.models import Projects, Contributors, Issues, Comments
 from alert.serializers import ProjectsListSerializer, ProjectsDetailSerializer,\
     ContributorsSerializer, IssuesSerializer, CommentsSerializer
-from alert.permissions import IsUserAuthorAndIsAuthenticated
+from alert.permissions import ProjectIsUserAuthorOrContributorPermissions
 
 # 3 Récupérer la liste de tous les projets (projects) rattachés à l'utilisateur (user) connecté
 # !!! manque utilisateur connecté
@@ -17,16 +17,21 @@ from alert.permissions import IsUserAuthorAndIsAuthenticated
 
 class ProjectsViewset(ModelViewSet):
 
-    # permission_classes = [IsAuthenticated, IsUserAuthor]
-    permission_classes = [IsUserAuthorAndIsAuthenticated]
+    permission_classes = [IsAuthenticated, ProjectIsUserAuthorOrContributorPermissions]
+    # permission_classes = [IsAuthenticated, AuthorIsRequestUserPermissions]
+    # permission_classes = [IsUserAuthorAndIsAuthenticated]
 
     serializer_class = ProjectsDetailSerializer
 
-    # @permission_classes([IsAuthenticated, IsUserAuthor])
+    # @permission_classes([IsAuthenticated, IsUserAuthor, ])
     def get_queryset(self):
-        # print("self.request.user ", self.request.user)
-        # return Projects.objects.all()
-        # Pour récupérer les projets rattachés à l'user (soit auteur, soit contributeur)
+        # si l'url est /api/projects/, alors self.kwargs = {}
+        # si l'url est /api/projects/2/, alors self.kwargs = {'pk': '2'}
+        # Si je veux le détail d'un projet, je retourne toutes les valeurs à la permission
+        # (l'affichage du détail étant géré par modelVieSet)
+        if self.kwargs:
+            return Projects.objects.all()
+        # sinon, je n'adresse que ce qui ne concerne que l'utilisateur
         return Projects.objects.filter(author_user=self.request.user)
 
     # Pour pouvoir faire un update partiel
@@ -113,6 +118,7 @@ class ProjectsViewset(ModelViewSet):
     # -------------------------------I S S U E S-------------------------------------
 
     # GET: /project/{id}/issues/
+    # @action(detail=True, methods=['get', 'post'], permission_classes=[AuthorIsRequestUserPermissions])
     @action(detail=True, methods=['get', 'post'])
     def issues(self, request, pk=None):
         """Création d'un path /projects/<id>/issues pour afficher les problèmes d'un projet,
@@ -125,6 +131,9 @@ class ProjectsViewset(ModelViewSet):
             except Issues.DoesNotExist:
                 return HttpResponse({"Aucun problème pour ce projet, ou projet inexistant."},
                                     status=404)
+            # for element in queryset:
+            #     if element.author_user != request.user:
+            #         return Response({f"Vous n'avez pas accès à cet objet"}, status=404)
 
             serializer = IssuesSerializer(queryset, many=True)
             return Response(serializer.data, status=200)
@@ -144,8 +153,8 @@ class ProjectsViewset(ModelViewSet):
             if serializer.is_valid():
                 # Si Informations partielles validées :
                 # Enregistrement du problème par le serializer en lui adressant le projet récupéré
-                # dans le try précédent, grace au pk de l'url
-                issue = serializer.create(project=project)
+                # dans le try précédent, grace au pk de l'url et l'auteur via request.user
+                issue = serializer.create(project=project, author_user=request.user)
                 return Response(issue, status=200)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -154,6 +163,8 @@ class ProjectsViewset(ModelViewSet):
         # le nom de la fonction mais remplacé par url_path. Comme pk, issue_id devient
         # récupérable
         # ------------------------------------------------------------------------------ #
+    # @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)',
+    #         permission_classes=[AuthorIsRequestUserPermissions])
     @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)')
     def update_or_delete_issue(self, request, issue_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id> pour mettre à jour un problème,
@@ -174,7 +185,7 @@ class ProjectsViewset(ModelViewSet):
 
         if request.method == "PUT":
             serializer = IssuesSerializer(partial=True)
-            print(request.data)
+            print("ICI PUT COTE VIEW")
             # Pas de création d'un update dans le serializers.py car utilisation de ipdate()
             issue_modified = serializer.update(instance=issue_concerned.first(),
                                                validated_data=request.data)
