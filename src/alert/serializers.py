@@ -1,4 +1,4 @@
-from rest_framework import serializers, request
+from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 
 from alert.models import Projects, Contributors, Issues, Comments
@@ -21,7 +21,6 @@ class ProjectsListSerializer(ModelSerializer):
 class ContributorsSerializer(ModelSerializer):
     """Serialize la classe Contributors"""
 
-
     class Meta:
         model = Contributors
         fields = ['user', 'project', 'role']
@@ -39,6 +38,7 @@ class ContributorsSerializer(ModelSerializer):
         contributor_serialized = ContributorsSerializer(instance=contributor).data
 
         return contributor_serialized
+
 
 class ProjectsDetailSerializer(ModelSerializer):
     """Serialize la classe Projects"""
@@ -63,7 +63,7 @@ class IssuesSerializer(ModelSerializer):
         fields = ['title', 'desc', 'tag', 'priority', 'status', 'author_user', 'assignee_user',
                   'created_time']
 
-    def create(self, project=None):
+    def create(self, project=None, author_user=None):
 
         issue = Issues(
             project=project,
@@ -72,7 +72,7 @@ class IssuesSerializer(ModelSerializer):
             tag=self.validated_data['tag'],
             priority=self.validated_data['priority'],
             status=self.validated_data['status'],
-            author_user=self.validated_data['author_user'],
+            author_user=author_user,
             assignee_user=self.validated_data['assignee_user'],
         )
         issue.save()
@@ -91,12 +91,12 @@ class CommentsSerializer(ModelSerializer):
         model = Comments
         fields = ['issue', 'description', 'author_user', 'created_time']
 
-    def create(self, issue_concerned=None):
+    def create(self, issue_concerned=None, author_user=None):
 
         comment = Comments(
             issue=issue_concerned,
             description=self.validated_data['description'],
-            author_user=self.validated_data['author_user'],
+            author_user=author_user,
         )
         comment.save()
 

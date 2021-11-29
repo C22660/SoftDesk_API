@@ -8,7 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from alert.models import Projects, Contributors, Issues, Comments
 from alert.serializers import ProjectsListSerializer, ProjectsDetailSerializer,\
     ContributorsSerializer, IssuesSerializer, CommentsSerializer
-from alert.permissions import ProjectIsUserAuthorOrContributorPermissions
+from alert.permissions import ProjectIsUserAuthorOrContributorPermissions,\
+    IssuesPermissions, CommentsPermissions
 
 # 3 Récupérer la liste de tous les projets (projects) rattachés à l'utilisateur (user) connecté
 # !!! manque utilisateur connecté
@@ -18,8 +19,6 @@ from alert.permissions import ProjectIsUserAuthorOrContributorPermissions
 class ProjectsViewset(ModelViewSet):
 
     permission_classes = [IsAuthenticated, ProjectIsUserAuthorOrContributorPermissions]
-    # permission_classes = [IsAuthenticated, AuthorIsRequestUserPermissions]
-    # permission_classes = [IsUserAuthorAndIsAuthenticated]
 
     serializer_class = ProjectsDetailSerializer
 
@@ -93,8 +92,11 @@ class ProjectsViewset(ModelViewSet):
     # récupérable
     # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['delete'], url_path='users/(?P<user_id>\d+)')
-    def remove_contributor_from_project(self, user_id, pk=None):
-        print(user_id)
+    def remove_contributor_from_project(self, request, user_id, pk=None):
+        # Attention : même si le paramètre request n'est pas utilisé,
+        # il faut le conserver à défaut d'obtenir un mesage d'erreur :
+        # TypeError: remove_contributor_from_project() got multiple values for argument 'user_id'
+
         # Vérification que le projet existe
         try:
             Projects.objects.get(pk=pk)
@@ -118,25 +120,28 @@ class ProjectsViewset(ModelViewSet):
     # -------------------------------I S S U E S-------------------------------------
 
     # GET: /project/{id}/issues/
-    # @action(detail=True, methods=['get', 'post'], permission_classes=[AuthorIsRequestUserPermissions])
-    @action(detail=True, methods=['get', 'post'])
+    @action(detail=True, methods=['get', 'post'], permission_classes=[IssuesPermissions])
+    # @action(detail=True, methods=['get', 'post'])
     def issues(self, request, pk=None):
         """Création d'un path /projects/<id>/issues pour afficher les problèmes d'un projet,
         et en enregistrer de nouveaux """
         # récupération de <id> du projet dans /projects/<id>/issues via pk
         if request.method == "GET":
             # Vérification qu'il y a un problème d'enregisté sur le projet
-            try:
-                queryset = Issues.objects.filter(project=pk)
-            except Issues.DoesNotExist:
+            queryset = Issues.objects.filter(project=pk)
+            if not queryset:
                 return HttpResponse({"Aucun problème pour ce projet, ou projet inexistant."},
                                     status=404)
+
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
+            serializer = IssuesSerializer(queryset, many=True)
+            return Response(serializer.data, status=200)
             # for element in queryset:
             #     if element.author_user != request.user:
             #         return Response({f"Vous n'avez pas accès à cet objet"}, status=404)
-
-            serializer = IssuesSerializer(queryset, many=True)
-            return Response(serializer.data, status=200)
+            # self.check_object_permissions(request, Issues.objects.get(pk=queryset.first().pk))
+            # serializer = IssuesSerializer(queryset, many=True)
+            # return Response(serializer.data, status=200)
 
         # Enregistrer un problème pour un projet
         if request.method == "POST":
@@ -152,6 +157,8 @@ class ProjectsViewset(ModelViewSet):
             serializer = IssuesSerializer(data=request.data, partial=True)
             if serializer.is_valid():
                 # Si Informations partielles validées :
+                # Vérification des permissions
+                self.check_object_permissions(request, Projects.objects.get(pk=pk))
                 # Enregistrement du problème par le serializer en lui adressant le projet récupéré
                 # dans le try précédent, grace au pk de l'url et l'auteur via request.user
                 issue = serializer.create(project=project, author_user=request.user)
@@ -165,7 +172,8 @@ class ProjectsViewset(ModelViewSet):
         # ------------------------------------------------------------------------------ #
     # @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)',
     #         permission_classes=[AuthorIsRequestUserPermissions])
-    @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)')
+    @action(detail=True, methods=['put', 'delete'], url_path='issues/(?P<issue_id>\d+)',
+            permission_classes=[IssuesPermissions])
     def update_or_delete_issue(self, request, issue_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id> pour mettre à jour un problème,
         ou le supprimer"""
@@ -187,6 +195,8 @@ class ProjectsViewset(ModelViewSet):
             serializer = IssuesSerializer(partial=True)
             print("ICI PUT COTE VIEW")
             # Pas de création d'un update dans le serializers.py car utilisation de ipdate()
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
             issue_modified = serializer.update(instance=issue_concerned.first(),
                                                validated_data=request.data)
 
@@ -196,6 +206,9 @@ class ProjectsViewset(ModelViewSet):
             return Response(issue_serialized, status=200)
 
         if request.method == "DELETE":
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
+            # si permission, suppression du problème :
             issue_concerned.delete()
 
             return Response({"message": "Le problème a bien été supprimé."}, status=200)
@@ -208,7 +221,7 @@ class ProjectsViewset(ModelViewSet):
         # Comme pk, issue_id devient récupérable
         # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['post', 'get'],
-            url_path='issues/(?P<issue_id>\d+)/comments')
+            url_path='issues/(?P<issue_id>\d+)/comments', permission_classes=[CommentsPermissions])
     def comments(self, request, issue_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id>/comments pour créer, récupérer
          un commentaire"""
@@ -235,17 +248,22 @@ class ProjectsViewset(ModelViewSet):
             serializer = CommentsSerializer(data=request.data, partial=True)
             if serializer.is_valid():
                 # Si Informations partielles validées :
+                # Vérification des permissions
+                self.check_object_permissions(request, Projects.objects.get(pk=pk))
                 # Enregistrement du commentaire par le serializer en lui adressant l'issue concernée
                 # dans le try précédent, grace au issue_id de l'url
                 # !!! si, issue_concerned récupérée avec filter et non get, il faut ajouter .first()
                 # car il s'agit alors d'un queryset et non plus d'une instance avec get
                 # issue_concerned = Issues.objects.get(pk=issue_id)
-                comment = serializer.create(issue_concerned=issue_concerned.first())
+                comment = serializer.create(issue_concerned=issue_concerned.first(),
+                                            author_user=request.user)
                 return Response(comment, status=200)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # Récupérer les commentaires d'un problème
         if request.method == 'GET':
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
             # récupération des commentaires liés à une issue
             all_comments_for_issue = Comments.objects.filter(issue=issue_id)
             datas = []
@@ -261,7 +279,8 @@ class ProjectsViewset(ModelViewSet):
         # Comme pk, issue_id et comment_id deviennent récupérables
         # ------------------------------------------------------------------------------ #
     @action(detail=True, methods=['get', 'put', 'delete'],
-            url_path='issues/(?P<issue_id>\d+)/comments/(?P<comment_id>\d+)')
+            url_path='issues/(?P<issue_id>\d+)/comments/(?P<comment_id>\d+)',
+            permission_classes=[CommentsPermissions])
     def update_or_delete_or_get_comment(self, request, issue_id, comment_id, pk=None):
         """Création d'un path /projects/<id>/issues/<id>/comments pour créer, récupérer,
         modifier, supprimer un commentaire"""
@@ -289,11 +308,13 @@ class ProjectsViewset(ModelViewSet):
 
         # Modifier un commentaire
         if request.method == "PUT":
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
             serializer = CommentsSerializer(partial=True)
 
             # Pas de création d'un update dans le serializers.py car utilisation de update()
             comment_modified = serializer.update(instance=comment_concerned.first(),
-                                                 validated_data=request.query_params)
+                                                 validated_data=request.data)
 
             # reserialization de comment_modified pour passage en Response
             comment_serialized = CommentsSerializer(instance=comment_modified).data
@@ -301,12 +322,16 @@ class ProjectsViewset(ModelViewSet):
             return Response(comment_serialized, status=200)
 
         if request.method == "DELETE":
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
             comment_concerned.delete()
 
             return Response({"message": "Le commentaire a bien été supprimé."}, status=200)
 
         # Récupérer un commentaire
         if request.method == "GET":
+            # Vérification des permissions
+            self.check_object_permissions(request, Projects.objects.get(pk=pk))
             # reserialization de comment_modified pour passage en Response
             comment_find = CommentsSerializer(instance=comment_concerned.first()).data
 

@@ -1,9 +1,7 @@
-from django.shortcuts import get_object_or_404
 from rest_framework.permissions import BasePermission
 from rest_framework import permissions
 
-from alert.models import Contributors, Projects, Issues
-from rest_framework.response import Response
+from alert.models import Contributors, Projects, Issues, Comments
 
 
 # class IsUserAuthorAndIsAuthenticated(BasePermission):
@@ -67,7 +65,6 @@ class ProjectIsUserAuthorOrContributorPermissions(BasePermission):
             return True
 
     def has_object_permission(self, request, view, obj):
-        print("au niveau has obj perm")
         # le super user à tous pouvoirs
         if request.user.is_superuser:
             return True
@@ -79,7 +76,6 @@ class ProjectIsUserAuthorOrContributorPermissions(BasePermission):
         # est contributeur :
         contributor = Contributors.objects.filter(project=obj.pk, user=request.user,
                                                   role="Contributor")
-
 
         # Si le request user est l'auteur du projet, accès au CRUD complet
         if author:
@@ -103,18 +99,22 @@ class IssuesPermissions(BasePermission):
     # car pas gérée automatiquement par le ModelVieSet et les classes permissions.
     # Seules les vues génériques (comme pour les projets) gèrent automatiquement
     # .check_object_permissions(request, obj)
+    # view.kwargs["pk"] idem obj.pk, soit l'ID du projet
 
-    message = "Permission refusée : seul l'auteur de ce problème peut le supprimer ou le modifier"
+    message = "Permission refusée : seul un auteur ou contributeur du projet concerné " \
+              "peut créer un Problème. " \
+              "Seul l'auteur ou contributeur d'un problème peut le visualiser. " \
+              "Seul l'auteur peut le supprimer ou le modifier."
 
     def has_permission(self, request, view):
         if request.user.is_authenticated:
             return True
 
     def has_object_permission(self, request, view, obj):
-
+        print("has_object_permission issue")
         # AU NIVEAU DES OBJETS 'PROBLEMES' (MODEL ISSUES)
         author_methods = ("GET", "PUT", "DELETE")
-        contributor_methods = ("PUT", "DELETE")
+        contributor_methods = ("GET",)
 
         # le super user à tous pouvoirs
         if request.user.is_superuser:
@@ -122,22 +122,36 @@ class IssuesPermissions(BasePermission):
 
         # La création d'un problème n'est permise que si request user est auteur ou
         # contributeur d'un projet (indifféremment, donc pas besoin d'aller dans Contributors)
-        # Recherche de author_user de projet
-        project = Projects.objects.get_object_or_404(pk=view.pk)
-        user_from_project = project.author_user
+        # Recherche des auteurs ou contributeurs d'un projet au travers du model Contributors
+        # est auteur :
+        author_from_project = Contributors.objects.filter(project=view.kwargs["pk"],
+                                                          user=request.user,
+                                                          role="Author")
+        # est contributeur :
+        contributor_from_project = Contributors.objects.filter(project=view.kwargs["pk"],
+                                                               user=request.user,
+                                                               role="Contributor")
+
+        # Recherche des auteurs ou contributeurs d'un problème au travers du model Issues
+        # est auteur :
+        author_from_issue = Issues.objects.filter(project=obj.pk, author_user=request.user)
+        # est contributeur :
+        contributor_from_issue = Issues.objects.filter(project=obj.pk, assignee_user=request.user)
 
         # Si le request user un contributeur (au sens large, auteur ou contributeur)
         # du projet, création d'un problème associé possible
-        if request.user == user_from_project and request.method == "POST":
+        if (author_from_project or contributor_from_project) and request.method == "POST":
             return True
 
         # Si le request user est l'auteur du problème, accès au RUD de CRUD
-        if obj.author_user == request.user and request.method in self.author_methods:
+        if author_from_issue and request.method in author_methods:
             return True
 
-        # Si le request user est le conributeur du problème, accès au UD de CRUD
-        if obj.assignee_user == request.user and request.method in self.contributor_methods:
+        # Si le request user est le contributeur du problème, accès au R de CRUD
+        if contributor_from_issue and request.method in contributor_methods:
             return True
+
+        return False
 
 
 class CommentsPermissions(BasePermission):
@@ -150,18 +164,22 @@ class CommentsPermissions(BasePermission):
     # Seules les vues génériques (comme pour les projets) gèrent automatiquement
     # .check_object_permissions(request, obj)
 
-    message = "Permission refusée : seul l'auteur de ce commentaire peut" \
-              " le supprimer ou le modifier"
+    message = "Permission refusée : seul un auteur ou contributeur du problème concerné " \
+              "peut créer un commentaire. " \
+              "Seul l'auteur du commentaire ou contributeur du projet peut le visualiser. " \
+              "Seul l'auteur du commentaire peut le supprimer ou le modifier."
 
     def has_permission(self, request, view):
         if request.user.is_authenticated:
             return True
 
     def has_object_permission(self, request, view, obj):
+        print("has_object_permission comment")
+        print(request.user)
 
         # AU NIVEAU DES OBJETS 'COMMENTAIRES' (MODEL COMMENTS)
         author_methods = ("GET", "PUT", "DELETE")
-        contributor_methods = ("PUT", "DELETE")
+        contributor_methods = ("GET", "POST")
 
         # le super user à tous pouvoirs
         if request.user.is_superuser:
@@ -170,29 +188,41 @@ class CommentsPermissions(BasePermission):
         # La création d'un commentaire n'est permise que si request user est auteur ou
         # contributeur d'un problème
         # Recherche de author_user du problème
-        issue = Issues.objects.get_object_or_404(pk=request.query_params["issue_id"])
-        author_from_issue = issue.author_user
-        contributor_from_issue = issue.assignee_user
+        author_from_issue = Issues.objects.filter(project=obj.pk, author_user=request.user)
+        # est contributeur :
+        contributor_from_issue = Issues.objects.filter(project=obj.pk, assignee_user=request.user)
 
-        # Si le request user un contributeur (au sens large, auteur ou contributeur)
+        # Si le request user est contributeur (au sens large, auteur ou contributeur)
         # du problème, création d'un commentaire associé possible
-        if request.user == (author_from_issue or contributor_from_issue)\
-                and request.method == "POST":
+        if (author_from_issue or contributor_from_issue) and request.method == "POST":
             return True
 
         # Si le request user est l'auteur du commentaire, accès au RUD de CRUD
-        if obj.author_user == request.user and request.method in self.author_methods:
+        # Recherche de l'auteur du commentaire au travers du model Comments
+        # est auteur :
+        author_from_comment = Comments.objects.filter(issue=view.kwargs["issue_id"],
+                                                      author_user=request.user)
+
+        if author_from_comment and request.method in author_methods:
             return True
 
         # Particularité d'un commentaire par rapport à un problème,
         # le contributeur est ici l'auteur ou le contributeur du projet associé
         # au problème
         # Recherche de author_user du projet
-        project = Projects.objects.get_object_or_404(pk=view.pk)
-        user_from_project = project.author_user
+        # Recherche des auteurs ou contributeurs d'un projet au travers du model Contributors
+        # est auteur :
+        author_from_project = Contributors.objects.filter(project=view.kwargs["pk"],
+                                                          user=request.user, role="Author")
+        # est contributeur :
+        contributor_from_project = Contributors.objects.filter(project=view.kwargs["pk"],
+                                                               user=request.user,
+                                                               role="Contributor")
 
-        # Si le request user est le user_from_project accès au UD de CRUD
-        if request.user == user_from_project and request.method in self.contributor_methods:
+        # Si le request user est le author_from_project ou contributot_from_project
+        # accès au CR de CRUD
+        if (author_from_project or contributor_from_project)\
+                and request.method in contributor_methods:
             return True
 
         return False
