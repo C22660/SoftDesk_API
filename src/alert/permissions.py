@@ -4,52 +4,6 @@ from rest_framework import permissions
 from alert.models import Contributors, Projects, Issues, Comments
 
 
-# class IsUserAuthorAndIsAuthenticated(BasePermission):
-# class IsUserAuthor(BasePermission):
-#     """Vérification si l'utilisateur est auteur d'un projet avant affichage"""
-#     message = "Permission refusée : l'utilisateur n'est pas auteur du projet"
-#
-#     # def has_permission(self, request, view):
-#     #     if request.user.is_authenticated:
-#     #         return True
-#     #     return False
-#
-#     def has_object_permission(self, request, view, obj):
-#         print("acces permissions")
-#         print("view : ", view)
-#         print("obj : ", obj)
-#         print(request.user)
-#         if Contributors.objects.filter(project=obj.pk, user=request.user, role="Author"):
-#             return True
-#         return False
-
-# class AuthorIsRequestUserPermissions(BasePermission):
-#     """Vérification si l'utilisateur est auteur d'un object avant affichage"""
-#     message = "Permission refusée :Vous n'avez pas les droits requis sur cet objet"
-#     # edit_methods = ("PUT", "DELETE")
-#
-#     def has_permission(self, request, view):
-#
-#         print("view : ", view)
-#         print(request.user)
-#         print(view.kwargs)
-#     #     if request.user.is_authenticated:
-#     #         print("request.user.is_authenticated")
-#     #         return True
-#         return True
-#
-#     def has_object_permission(self, request, view, obj):
-#         print("obj : ", obj)
-#         print(permissions.SAFE_METHODS)
-#         if request.method in permissions.SAFE_METHODS:
-#             return True
-#
-#         if obj.author_user == request.user:
-#             return True
-#
-#         return False
-
-########
 class ProjectIsUserAuthorOrContributorPermissions(BasePermission):
     """Vérification si l'utilisateur est auteur d'un projet ou un contributeur
      et attribution de permissions différentes en fonction"""
