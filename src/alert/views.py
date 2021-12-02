@@ -121,7 +121,6 @@ class ProjectsViewset(ModelViewSet):
 
     # GET: /project/{id}/issues/
     @action(detail=True, methods=['get', 'post'], permission_classes=[IssuesPermissions])
-    # @action(detail=True, methods=['get', 'post'])
     def issues(self, request, pk=None):
         """Création d'un path /projects/<id>/issues pour afficher les problèmes d'un projet,
         et en enregistrer de nouveaux """

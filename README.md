@@ -78,11 +78,7 @@ entrer le nom d'utilisateur (Username), Email, et mot de passe (invisible lors d
 depuis le terminal > `$ python manage.py runserver`
 
 - Accès aux URLs depuis Postman :
-Dans la barre d'adresse, ajouter /administration-application
-(127.0.0.1:8000/administration-application)
-L'interface d'administration apparaît
-
-- L'accès à la page d'accueil (page de connexion/inscription) directement depuis 127.0.0.1:8000
+Dans la barre d'adresse, ajouter http://127.0.0.1:8000/api suivi du endpoint souhaité.
 
 ## Technologies
 Python 3.9
