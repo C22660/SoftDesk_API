@@ -1,6 +1,6 @@
 from django.http import Http404, HttpResponse
 from rest_framework import status
-from rest_framework.decorators import action, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
@@ -12,7 +12,6 @@ from alert.permissions import ProjectIsUserAuthorOrContributorPermissions,\
     IssuesPermissions, CommentsPermissions
 
 # 3 Récupérer la liste de tous les projets (projects) rattachés à l'utilisateur (user) connecté
-# !!! manque utilisateur connecté
 # 5 Récupérer les détails d'un projet (project) via son id
 
 
@@ -22,7 +21,6 @@ class ProjectsViewset(ModelViewSet):
 
     serializer_class = ProjectsDetailSerializer
 
-    # @permission_classes([IsAuthenticated, IsUserAuthor, ])
     def get_queryset(self):
         # si l'url est /api/projects/, alors self.kwargs = {}
         # si l'url est /api/projects/2/, alors self.kwargs = {'pk': '2'}

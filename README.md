@@ -70,6 +70,8 @@ Installation :
 
 Une fois cette installation effectuée :
 
+- Appliquer les migrations dans la base de données : depuis le terminal > $ python manage.py migrate
+
 - Création du superuser (utilisateur avec droits d'administration) :
 depuis le terminal > `$ python manage.py createsuperuser`
 entrer le nom d'utilisateur (Username), Email, et mot de passe (invisible lors de la frappe dans le terminal)
