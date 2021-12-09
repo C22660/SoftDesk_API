@@ -48,12 +48,7 @@ Elles permettent d'acceder aux points de terminaison suivants :
 |	19.	|	Récupérer un commentaire (comment) via son id	|	GET	|	/projects/{id}/issues/{id}/comments/{id}	|
 
 
-Retrouvez la [documentation Postman Login ici](https://documenter.getpostman.com/view/18184212/UVJeEG8B).
-Retrouvez la [documentation Global project ici](https://documenter.getpostman.com/view/18184212/UVJeEG8C).
-
-
-
-
+Retrouvez la [documentation Postman ici](https://documenter.getpostman.com/view/18184212/UVJeEG8C).
 
 
 
