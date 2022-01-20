@@ -228,7 +228,7 @@ class ProjectsViewset(ModelViewSet):
         except Projects.DoesNotExist:
             return HttpResponse({f"Le projet {pk} n'existe pas."}, status=404)
 
-        # Vérification qu'il y a bien un problèmes 'issue_id' lié au projet
+        # Vérification qu'il y a bien un problème 'issue_id' lié au projet
         issue_concerned = Issues.objects.filter(project=pk).filter(pk=issue_id)
         # Si aucun problème n'est associé à ce projet, alors len = 0 :
         if len(issue_concerned) == 0:
